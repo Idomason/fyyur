@@ -112,7 +112,7 @@ def venues():
   # Inorder to avoid duplicates I used set
   locations = set()
   for venue in venues:
-    locations.add((venues.city, venues.state))
+    locations.add((venue.city, venue.state))
   
   for location in locations:
     data.append({
