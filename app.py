@@ -32,25 +32,23 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICAT
 
 class Venue(db.Model):
     __tablename__ = 'venues'
-
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
+    name = db.Column(db.String, nullable=False)
+    city = db.Column(db.String(120), nullable=False)
+    state = db.Column(db.String(120), nullable=False)
+    address = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(120), nullable=False)
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    genres = db.Column(db.String(120),nullable=False)
+    genres = db.Column(db.String(120), nullable=False)
     website = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean,default=False)
+    seeking_talent = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.Text)
-    upcoming_shows_count = db.Column(db.Integer, default=False)
-    past_shows_count = db.Column(db.Integer, default=False)
-    shows = db.relationship('Show', backref='venue', lazy=True, cascade="save-update, merge, delete")
-
+    upcoming_shows_count = db.Column(db.Integer, default=0)
+    past_shows_count = db.Column(db.Integer, default=0)
+    shows = db.relationship('Show', backref='venue', lazy=True)
 
 class Artist(db.Model):
     __tablename__ = 'artists'
@@ -60,20 +58,17 @@ class Artist(db.Model):
     city = db.Column(db.String(120), nullable=False)
     state = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(120), nullable=False)
-    genres = db.Column('genres', db.ARRAY(db.String()), nullable=False)
+    genres = db.Column(db.String(120), nullable=False)
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
 
-
-
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
     website = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean,default=False)
+    seeking_venue = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.Text)
-    upcoming_shows_count = db.Column(db.Integer, default=False)
-    past_shows_count = db.Column(db.Integer, default=False)
-    shows = db.relationship('Show',backref='artist',lazy=True, cascade="save-update, merge, delete")
-
+    upcoming_shows_count = db.Column(db.Integer, default=0)
+    past_shows_count = db.Column(db.Integer, default=0)
+    shows = db.relationship('Show', backref='artist', lazy=True)
 
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
@@ -81,12 +76,11 @@ class Show(db.Model):
     __tablename__ = 'shows'
     id = db.Column(db.Integer, primary_key=True)
     start_time = db.Column(db.DateTime, nullable=False)
-    artist_id = db.Column(db.Integer,db.ForeignKey('artists.id') ,nullable=False)
-    venue_id = db.Column(db.Integer,db.ForeignKey('venues.id') ,nullable=False)
+    artist_id = db.Column(db.Integer, db.ForeignKey('artists.id'), nullable=False)
+    venue_id = db.Column(db.Integer, db.ForeignKey('venues.id'), nullable=False)
     upcoming = db.Column(db.Boolean, nullable=False, default=True)
 
-db.create_all() 
-
+db.create_all()            
 #----------------------------------------------------------------------------#
 # Filters.
 #----------------------------------------------------------------------------#
@@ -97,7 +91,7 @@ def format_datetime(value, format='medium'):
       format="EEEE MMMM, d, y 'at' h:mma"
   elif format == 'medium':
       format="EE MM, dd, y h:mma"
-  return babel.dates.format_datetime(date, format, locale='en')
+  return babel.dates.format_datetime(date, format)
 
 app.jinja_env.filters['datetime'] = format_datetime
 
@@ -116,8 +110,7 @@ def index():
 @app.route('/venues')
 def venues():
   # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-
+  #       num_shows should be aggregated based on number of upcoming shows per venue.
   venue_areas = db.session.query(Venue.city,Venue.state).group_by(Venue.state,
     Venue.city).all()
   data = []
@@ -136,22 +129,14 @@ def venues():
               "num_upcoming_shows":venue[2]
       })
 
-  return render_template('pages/venues.html', areas=data)
+
+  return render_template('pages/venues.html', areas=data);
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  
-  # response={
-  #   "count": 1,
-  #   "data": [{
-  #     "id": 2,
-  #     "name": "The Dueling Pianos Bar",
-  #     "num_upcoming_shows": 0,
-  #   }]
-  # }
 
   results = Venue.query.filter(Venue.name.ilike('%{}%'.format(request.form['search_term']))).all()
   response={
@@ -164,12 +149,14 @@ def search_venues():
         "name": venue.name,
         "num_upcoming_shows": venue.upcoming_shows_count
       })
+  
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # TODO: replace with real venue data from the venues table, using venue_id
+
   venue = Venue.query.get(venue_id)
   past_shows = []
   upcoming_shows = []
@@ -204,6 +191,7 @@ def show_venue(venue_id):
     "past_shows_count": len(past_shows),
     "upcoming_shows_count": len(upcoming_shows)
   }
+
   
   return render_template('pages/show_venue.html', venue=data)
 
@@ -230,7 +218,7 @@ def create_venue_submission():
   venue.website = request.form['website_link']
   venue.image_link = request.form['image_link']
   try:
-    db.session.add()
+    db.session.add(venue)
     db.session.commit()
     # on successful db insert, flash success
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
@@ -262,7 +250,7 @@ def delete_venue(venue_id):
 
     flash('Venue ' + venue_name + ' was deleted')
   except:
-    flash(' an error occured and Venue ' + venue_name + ' was not deleted')
+    flash(' An error occured and Venue ' + venue_name + ' was not deleted')
     db.session.rollback()
   finally:
     db.session.close()
@@ -559,8 +547,7 @@ def create_show_submission():
   DTList += dateAndTime[1].split(':') 
   for i in range(len(DTList)):
     DTList[i] = int(DTList[i])
-  new_show.start_time = datetime(DTList[0],DTList[1],DTList[2]
-                                        ,DTList[3],DTList[4],DTList[5])
+  new_show.start_time = datetime(DTList[0],DTList[1],DTList[2],DTList[3],DTList[4],DTList[5])
   now = datetime.now()
   new_show.upcoming = (now < new_show.start_time)
   try:
@@ -569,18 +556,18 @@ def create_show_submission():
     updated_artist = Artist.query.get(new_show.artist_id)
     updated_venue = Venue.query.get(new_show.venue_id)
     if(new_show.upcoming):
-      updated_artist.upcoming_shows_count += 1;
-      updated_venue.upcoming_shows_count += 1;
+      updated_artist.upcoming_shows_count += 1
+      updated_venue.upcoming_shows_count += 1
     else:
-      updated_artist.past_shows_count += 1;
-      updated_venue.past_shows_count += 1;
+      updated_artist.past_shows_count += 1
+      updated_venue.past_shows_count += 1
     # on successful db insert, flash success
     db.session.commit()
     flash('Show was successfully listed!')
   except:
     db.session.rollback()
     # TODO: on unsuccessful db insert, flash an error instead.
-    flash('Show could not be listed. please make sure that your ids are correct')
+    flash('Show could not be listed. please check your ids')
   finally:
     db.session.close()
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
