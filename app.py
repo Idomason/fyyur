@@ -567,7 +567,7 @@ def create_show_submission():
   except:
     db.session.rollback()
     # TODO: on unsuccessful db insert, flash an error instead.
-    flash('Show could not be listed. please check your ids')
+    flash('An error occurred. Show could not be listed.')
   finally:
     db.session.close()
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
