@@ -24,26 +24,36 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_shows should be aggregated based on number of upcoming shows per venue.
-  venue_areas = db.session.query(Venue.city,Venue.state).group_by(Venue.state,
-    Venue.city).all()
   data = []
-  for area in venue_areas:
-    venues = db.session.query(Venue.id,Venue.name,
-      Venue.upcoming_shows_count).filter(Venue.city==area[0],Venue.state==area[1]).all()
+  venue_locations = Venue.query.all()
+  venue_places = set()
+  for location in venue_locations:
+    # Adding location to tuple
+    venue_places.add((location.city, location.state))
+
+  for location in venue_places:
     data.append({
-        "city": area[0],
-        "state": area[1],
-        "venues": []
-    })
-    for venue in venues:
-      data[-1]["venues"].append({
-              "id": venue[0],
-              "name": venue[1],
-              "num_upcoming_shows":venue[2]
-      })
+      "city": location[0],
+      "state": location[1],
+      "venues": []
+  })
 
+  # Number of upcoming shows
+  for location in venue_locations:
+    num_upcoming_shows = 0
+    shows = Show.query.filter_by(venue_id=location.id).all()
+    for show in shows:
+      if show.start_time > datetime.now():
+          num_upcoming_shows += 1
 
-  return render_template('pages/venues.html', areas=data);
+    for datum in data:
+      if location.city == datum['city'] and location.state == datum['state']:
+          datum['venues'].append({
+              "id": location.id,
+              "name": location.name,
+              "num_upcoming_shows": num_upcoming_shows
+          })
+  return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -51,18 +61,13 @@ def search_venues():
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
 
-  results = Venue.query.filter(Venue.name.ilike('%{}%'.format(request.form['search_term']))).all()
-  response={
-    "count": len(results),
-    "data": []
-    }
-  for venue in results:
-    response["data"].append({
-        "id": venue.id,
-        "name": venue.name,
-        "num_upcoming_shows": venue.upcoming_shows_count
-      })
-  
+  query = request.form.get('search')
+  results = Venue.query.filter(Venue.name.ilike('%'+query+'%')).all()
+  venue_list = list(map(Venue.short, query))
+  response = {
+    "count": len(venue_list),
+    "data": venue_list
+  }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/venues/<int:venue_id>')
